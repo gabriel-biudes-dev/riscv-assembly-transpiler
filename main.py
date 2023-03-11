@@ -209,6 +209,49 @@ def getinstructions(filecontent):
         instructions.append(instruction)
     return instructions
 
+def getIntAddi(strbin):
+    """Gets integer value of addi instructions IMM
+
+    Args:
+        strbin (str): Binary string
+
+    Returns:
+        int: Integer Value
+    """
+    signal = strbin[0]
+    finalstr = strbin[1:len(strbin)]
+    x = int(finalstr , 2)
+    num_bits = 12
+    if signal == '0': return x
+    return x - (1 << num_bits)
+
+def getIntB(strbin):
+    """Gets integer value of B instructions IMM
+
+    Args:
+        strbin (str): Binary string
+
+    Returns:
+        int: Integer value
+    """
+    signal = strbin[0]
+    finalstr = strbin[11]
+    finalstr = finalstr + strbin[1]
+    finalstr = finalstr + strbin[2]
+    finalstr = finalstr + strbin[3]
+    finalstr = finalstr + strbin[4]
+    finalstr = finalstr + strbin[5]
+    finalstr = finalstr + strbin[6]
+    finalstr = finalstr + strbin[7]
+    finalstr = finalstr + strbin[8]
+    finalstr = finalstr + strbin[9]
+    finalstr = finalstr + strbin[10]
+    finalstr = finalstr + '0'
+    x = int(finalstr , 2)
+    num_bits = 12
+    if signal == '0': return x
+    return x - (1 << num_bits)
+
 def translate(instruction):
     """Translates a instrunction to assembly code
 
@@ -227,7 +270,7 @@ def translate(instruction):
         template = instruction.name + ' xA, xB, Z'
         template = template.replace('A', str(int(instruction.rd, 2)))
         template = template.replace('B', str(int(instruction.rs1, 2)))
-        template = template.replace('Z', str(int(instruction.imm, 2)))
+        template = template.replace('Z', str(getIntAddi(instruction.imm)))
     if instruction.name == 'lw' or instruction.name == 'sw':
         template = instruction.name + ' xA, Z(xB)'
         if instruction.name == 'lw': 
@@ -238,9 +281,12 @@ def translate(instruction):
             template = template.replace('Z', str(int(instruction.imm2, 2)))
         template = template.replace('B', str(int(instruction.rs1, 2)))
     if instruction.format == 'B':
-        template = instruction.name + ' xZ, xK, LABEL'
+        template = instruction.name + ' xZ, xK, M'
         template = template.replace('Z', str(int(instruction.rs1, 2)))
         template = template.replace('K', str(int(instruction.rs2, 2)))
+        immf = instruction.imm + instruction.imm2
+        immf = getIntB(immf)
+        template = template.replace('M', str(immf))
     return template
 
 def getflags(instrunction):
@@ -317,7 +363,12 @@ def showregisters(registers):
         registers (list[int]): List of registers
     """
     print('\n[REGISTRADORES]')
-    for index, x in enumerate(registers): print(f'x{index} = {x}')
+    for index, x in enumerate(registers):
+        print(f'x{index} ', end = '')
+        if index < 10: print(' ', end = '')
+        print('= %3d' % x, end = '')
+        if (index + 1) % 4 == 0: print()
+        else: print("\t\t", end = '')
 
 def showmemory(memory):
     """Shows current memory values
@@ -326,7 +377,13 @@ def showmemory(memory):
         memory (list[int]): Memory
     """
     print('\n[MEMÓRIA]')
-    for index, x in enumerate(memory): print(f'[{index}] = {x}')
+    for index, x in enumerate(memory):
+        print(f'[{index}] ', end = '')
+        if index < 10: print(' ', end = '')
+        if index < 100: print(' ', end = '')
+        print('= %3d' % x, end = '')
+        if (index + 1) % 4 == 0: print()
+        else: print("\t\t", end = '')
 
 def execute(instruction, memory, registers, pc):
     """Executes instruction
@@ -343,7 +400,7 @@ def execute(instruction, memory, registers, pc):
     if instruction.name == 'addi':
         rd = int(instruction.rd, 2)
         rs1 = int(instruction.rs1, 2)
-        imm = int(instruction.imm, 2)
+        imm = getIntAddi(instruction.imm)
         registers[rd] = registers[rs1] + imm
     if instruction.format == 'R':
         rd = int(instruction.rd, 2)
@@ -369,7 +426,7 @@ def execute(instruction, memory, registers, pc):
         imm = instruction.imm
         imm2 = instruction.imm2
         immfinal = imm + imm2
-        immfinal = int(immfinal, 2)
+        immfinal = getIntB(immfinal)
         if instruction.name == 'beq':
             if registers[rs1] == registers[rs2]: pc = pc + immfinal - 4
         if instruction.name == 'bne':
@@ -406,6 +463,6 @@ def main():
     showmemory(memory)
     showregisters(registers)
     print('\nNão há mais instruções a serem executadas')
-    fim = input()
+    end = input()
 
 if __name__ == '__main__': main()
